@@ -802,7 +802,7 @@ DEFINE_FUNCTION UIPageAddPopup(integer pageID, char popup[]) {
     
     if(index) {
 	for(n = 1; n <= MAX_LENGTH_ARRAY(uiPages[index].popups); n ++) {
-	    if(!LENGTH_STRING(uiPages[index].popups)) {
+	    if(!LENGTH_STRING(uiPages[index].popups[n])) {
 		uiPages[index].popups[n] = popup
 		uiPages[index].numberOfPopupsDefined = n
 		break
