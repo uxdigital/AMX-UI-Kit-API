@@ -1,12 +1,7 @@
 AMX-UI-Kit-API
 ============================================================================
+Control Designs Software Ltd
 
-   _____            _              _  ____             _                   
-  |     | ___  ___ | |_  ___  ___ | ||    \  ___  ___ |_| ___  ___  ___    
-  |   --|| . ||   ||  _||  _|| . || ||  |  || -_||_ -|| || . ||   ||_ -|   
-  |_____||___||_|_||_|  |_|  |___||_||____/ |___||___||_||_  ||_|_||___|   
-                                                         |___|             
-                                                           
 Permission is hereby granted, free of charge, to any person obtaining a   
 copy of this software and associated documentation files (the "Software"),
 to deal in the Software without restriction, including without limitation 
