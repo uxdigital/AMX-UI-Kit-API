@@ -1,6 +1,6 @@
 PROGRAM_NAME='UI Kit API'
 (***********************************************************)
-(*  FILE_LAST_MODIFIED_ON: 07/02/2013  AT: 11:50:51        *)
+(*  FILE_LAST_MODIFIED_ON: 07/02/2013  AT: 13:27:51        *)
 (*******************************************************************************)
 (*                                                                             *)
 (*     _____            _              _  ____             _                   *)
@@ -841,6 +841,24 @@ DEFINE_FUNCTION UIPageFromID(char deviceKey[], integer pageID) {
 	    }
 	}
 	UIPage(deviceKey, uiPages[index].name)
+    }
+}
+
+DEFINE_FUNCTION UIPageFromIDWithTimeOut(char deviceKey[], integer pageID, integer timeOutInSeconds) {
+    STACK_VAR INTEGER index
+    STACK_VAR INTEGER n
+    
+    index = UIPageGetIndexForID(pageID)
+    
+    if(index) {
+	if(uiPages[index].numberOfPopupsDefined) {
+	    for(n = 1; n <= MAX_LENGTH_ARRAY(uiPages[index].popups); n ++) {
+		if(n <= uiPages[index].numberOfPopupsDefined) {
+		    UIPopup(deviceKey, uiPages[index].popups[n], uiPages[index].name, TRUE, 0)
+		}
+	    }
+	}
+	UIPageWithTimeOut(deviceKey, uiPages[index].name, timeOutInSeconds)
     }
 }
 
