@@ -1,6 +1,6 @@
 PROGRAM_NAME='UI Kit API'
 (***********************************************************)
-(*  FILE_LAST_MODIFIED_ON: 06/19/2013  AT: 14:50:13        *)
+(*  FILE_LAST_MODIFIED_ON: 07/02/2013  AT: 13:27:51        *)
 (*******************************************************************************)
 (*                                                                             *)
 (*     _____            _              _  ____             _                   *)
@@ -360,6 +360,21 @@ DEFINE_FUNCTION CHAR[UI_PAGE_NAME_MAX_LENGTH] UIGetCurrentPageName(CHAR deviceKe
     result = ui[group.index[1]].pageCurrent
 
     return(result)
+}
+
+DEFINE_FUNCTION INTEGER UIGetCurrentPageID(CHAR deviceKey[]) {
+    CHAR pageName[UI_PAGE_NAME_MAX_LENGTH]
+    STACK_VAR INTEGER n
+    
+    pageName = UIGetCurrentPageName(deviceKey)
+    
+    for(n = 1; n <= MAX_LENGTH_ARRAY(uiPages); n ++) {
+	if(uiPages[n].name == pageName) {
+	    return uiPages[n].id
+	}
+    }	
+    
+    return 0
 }
 
 DEFINE_FUNCTION CHAR[UI_PAGE_NAME_MAX_LENGTH] UIGetPreviousPageName(CHAR deviceKey[]) {
@@ -826,6 +841,24 @@ DEFINE_FUNCTION UIPageFromID(char deviceKey[], integer pageID) {
 	    }
 	}
 	UIPage(deviceKey, uiPages[index].name)
+    }
+}
+
+DEFINE_FUNCTION UIPageFromIDWithTimeOut(char deviceKey[], integer pageID, integer timeOutInSeconds) {
+    STACK_VAR INTEGER index
+    STACK_VAR INTEGER n
+    
+    index = UIPageGetIndexForID(pageID)
+    
+    if(index) {
+	if(uiPages[index].numberOfPopupsDefined) {
+	    for(n = 1; n <= MAX_LENGTH_ARRAY(uiPages[index].popups); n ++) {
+		if(n <= uiPages[index].numberOfPopupsDefined) {
+		    UIPopup(deviceKey, uiPages[index].popups[n], uiPages[index].name, TRUE, 0)
+		}
+	    }
+	}
+	UIPageWithTimeOut(deviceKey, uiPages[index].name, timeOutInSeconds)
     }
 }
 
