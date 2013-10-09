@@ -1850,7 +1850,7 @@ DEFINE_FUNCTION UISaveCurrentVarsToXML(CHAR uiDeviceKey[], CHAR fileName[]) {
     }
 }
 
-DEFINE_FUNCTION UILoadCurrentVarsFromXML(CHAR uiDeviceKey[], CHAR fileName) {
+DEFINE_FUNCTION UILoadCurrentVarsFromXML(CHAR uiDeviceKey[], CHAR fileName[]) {
     STACK_VAR SLONG file
     STACK_VAR SLONG result
     STACK_VAR LONG pos
