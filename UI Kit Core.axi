@@ -1,4 +1,4 @@
-PROGRAM_NAME='UI Kit'
+PROGRAM_NAME='UI Kit Core'
 (***********************************************************)
 (*  FILE_LAST_MODIFIED_ON: 06/19/2013  AT: 14:51:29        *)
 (*******************************************************************************)
@@ -21,16 +21,16 @@ PROGRAM_NAME='UI Kit'
 (*                                                                             *)
 (*******************************************************************************)
 (*                                                                             *)
-(*                         UI Kit v1-01 (include)                              *)
-(*                     for use with 'UI Kit API v1-01'                         *)
+(*                          UI Kit Core (include)                              *)
+(*                       for use with 'UI Kit API v2'                          *)
 (*                                                                             *)
 (*            Written by Mike Jobson (Control Designs Software Ltd)            *)
 (*                                                                             *)
 (** REVISION HISTORY ***********************************************************)
 (*                                                                             *)
-(*  v1-01 (beta 2)                                                             *)
+(*  v2 (beta)                                                                  *)
 (*  First release developed in beta only at this point in time                 *)
-(*  No known issues                                                            *)
+(*  Documentation to follow soon                                               *)
 (*                                                                             *)
 (*******************************************************************************)
 (*                                                                             *)
@@ -85,6 +85,7 @@ STRUCT _UI_VAR {
     INTEGER defined
     CHAR key[UI_KEY_MAX_LENGTH]
     CHAR value[UI_VAR_MAX_VALUE_LENGTH]
+    INTEGER includeInFileData
 }
 
 STRUCT _UI_LIST_ITEM {
@@ -138,11 +139,16 @@ STRUCT _UI_PAGE {
     INTEGER numberOfPopupsDefined
 }
 
+STRUCT _UI_FILE_DATA {
+    _UI_VAR var[UI_MAX_NUMBER_OF_VARS]
+}
+
 
 DEFINE_VARIABLE
 
 VOLATILE _UI_DATA ui[UI_MAX_DEVICES]
 VOLATILE _UI_PAGE uiPages[UI_MAX_PAGES]
+VOLATILE _UI_FILE_DATA uiFileData[UI_MAX_DEVICES]
 
 DEFINE_FUNCTION UIInitData() {
     STACK_VAR INTEGER n
@@ -168,6 +174,7 @@ DEFINE_FUNCTION UIInitData() {
 	    ui[n].var[v].defined = FALSE
 	    ui[n].var[v].key = ''
 	    ui[n].var[v].value = ''
+	    ui[n].var[v].includeInFileData = FALSE
 	}
 	UIListInitStruct(ui[n].list)
 	UIActionSheetInit(ui[n].actionSheet)
@@ -175,6 +182,102 @@ DEFINE_FUNCTION UIInitData() {
 	ui[n].password.passwordAttempt = ''
 	ui[n].password.showingLastCharacter = 0
 	ui[n].password.inSession = 0
+    }
+    
+    for(n = 1; n <= MAX_LENGTH_ARRAY(uiFileData); n ++) {
+	for(v = 1; v <= MAX_LENGTH_ARRAY(uiFileData[n].var); v ++) {
+	    uiFileData[n].var[v].id = v
+	    uiFileData[n].var[v].defined = FALSE
+	    uiFileData[n].var[v].key = ''
+	    uiFileData[n].var[v].value = ''
+	    uiFileData[n].var[v].includeInFileData = FALSE
+	}
+    }
+}
+
+DEFINE_FUNCTION UIVarDataCopy(INTEGER uiIndex, CHAR varKey[]) {
+    STACK_VAR INTEGER n
+    STACK_VAR INTEGER varIndex1
+    STACK_VAR INTEGER varIndex2
+
+    varIndex1 = 0
+    varIndex2 = 0
+    
+    if(LENGTH_STRING(varKey)) {
+	for(n = 1; n <= MAX_LENGTH_ARRAY(ui[uiIndex].var); n ++) {
+	    if(ui[uiIndex].var[n].key == varKey) {
+		varIndex1 = n
+		break
+	    }
+	}
+	
+	for(n = 1; n <= MAX_LENGTH_ARRAY(uiFileData[uiIndex].var); n ++) {
+	    if(uiFileData[uiIndex].var[n].key == varKey) {
+		varIndex2 = n
+		break
+	    }
+	}
+	
+	if(!varIndex2) {
+	    for(n = 1; n <= MAX_LENGTH_ARRAY(uiFileData[uiIndex].var); n ++) {
+		if(!uiFileData[uiIndex].var[n].defined) {
+		    varIndex2 = n
+		    break
+		}
+	    }
+	}
+	
+	if(varIndex1 && varIndex2) {
+	    uiFileData[uiIndex].var[varIndex2] = ui[uiIndex].var[varIndex1]
+	}
+    }
+}
+
+DEFINE_FUNCTION UIVarDataRestore(INTEGER uiIndex, CHAR varKey[]) {
+    STACK_VAR INTEGER n
+    STACK_VAR INTEGER varIndex1
+    STACK_VAR INTEGER varIndex2
+
+    varIndex1 = 0
+    varIndex2 = 0
+    
+    if(LENGTH_STRING(varKey)) {
+	for(n = 1; n <= MAX_LENGTH_ARRAY(uiFileData[uiIndex].var); n ++) {
+	    if(uiFileData[uiIndex].var[n].key == varKey) {
+		varIndex1 = n
+		break
+	    }
+	}
+	
+	for(n = 1; n <= MAX_LENGTH_ARRAY(ui[uiIndex].var); n ++) {
+	    if(ui[uiIndex].var[n].key == varKey) {
+		varIndex2 = n
+		break
+	    }
+	}
+	
+	if(!varIndex2) {
+	    for(n = 1; n <= MAX_LENGTH_ARRAY(ui[uiIndex].var); n ++) {
+		if(!ui[uiIndex].var[n].defined) {
+		    varIndex2 = n
+		    break
+		}
+	    }
+	}
+	
+	if(varIndex1 && varIndex2) {
+	    ui[uiIndex].var[varIndex2] = uiFileData[uiIndex].var[varIndex1]
+	}
+    }
+}
+
+DEFINE_FUNCTION UserInterfacesRegisteredCallback() {
+    STACK_VAR INTEGER n
+    
+    for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
+	if(ui[n].defined) {
+	    UserInterfaceHasRegistered(ui[n].key)
+	}
     }
 }
 
@@ -209,7 +312,7 @@ DEFINE_FUNCTION INTEGER UIGetNextUndefinedVarIndex(INTEGER deviceIndex) {
     return(result)
 }
 
-DEFINE_FUNCTION INTEGER UIRegisterVarForDeviceAtIndex(INTEGER deviceIndex, CHAR varKey[], CHAR initVal[]) {
+DEFINE_FUNCTION INTEGER UIRegisterVarForDeviceAtIndex(INTEGER deviceIndex, CHAR varKey[], CHAR initVal[], INTEGER includeInFileData) {
     STACK_VAR INTEGER nextVarIndex
 
     nextVarIndex = UIGetNextUndefinedVarIndex(deviceIndex)
@@ -218,6 +321,7 @@ DEFINE_FUNCTION INTEGER UIRegisterVarForDeviceAtIndex(INTEGER deviceIndex, CHAR 
 	ui[deviceIndex].var[nextVarIndex].defined = TRUE
 	ui[deviceIndex].var[nextVarIndex].key = varKey
 	ui[deviceIndex].var[nextVarIndex].value = initVal
+	ui[deviceIndex].var[nextVarIndex].includeInFileData = includeInFileData
     }
 
     return(nextVarIndex)
@@ -246,6 +350,10 @@ DEFINE_FUNCTION UISetVarForDeviceAtIndex(INTEGER deviceIndex, CHAR varKey[], CHA
 
     if(varIndex) {
 	ui[deviceIndex].var[varIndex].value = value
+	
+	if(ui[deviceIndex].var[varIndex].includeInFileData) {
+	    UIVarDataCopy(deviceIndex, varKey)
+	}
     }
 }
 
@@ -525,6 +633,7 @@ UIInitData()
 UIInitPages()
 UserInterfacesShouldRegister()
 UserInterfaceVarsShouldRegister()
+UserInterfacesRegisteredCallback()
 wait 10 {
     TIMELINE_CREATE(UI_TIMEOUT_CHECK_TIMELINE, UI_TIMELINE_1_SECOND_REPEAT_TIME, LENGTH_ARRAY(UI_TIMELINE_1_SECOND_REPEAT_TIME), TIMELINE_ABSOLUTE, TIMELINE_REPEAT)
 }

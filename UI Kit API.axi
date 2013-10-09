@@ -21,16 +21,28 @@ PROGRAM_NAME='UI Kit API'
 (*                                                                             *)
 (*******************************************************************************)
 (*                                                                             *)
-(*                            UI Kit API v1-01                                 *)
-(*                      also includes 'UI Kit v1-01'                           *)
+(*                           UI Kit API v2 Beta                                *)
+(*                       also includes 'UI Kit Core'                           *)
 (*                                                                             *)
 (*            Written by Mike Jobson (Control Designs Software Ltd)            *)
 (*                                                                             *)
 (** REVISION HISTORY ***********************************************************)
 (*                                                                             *)
-(*  v1-01 (beta 3)                                                             *)
+(*  v2 (beta)                                                                  *)
 (*  First release developed in beta only at this point in time                 *)
-(*  No known issues - Notes to follow in coming update                         *)
+(*  Note this requires the following callbacks to be included in your code:    *)
+(*                                                                             *)
+(*    DEFINE_FUNCTION UserInterfacesShouldRegister() {                         *)
+(*	UIRegisterDevice(deviceKey, deviceName, groupKey, device)              *)
+(*    }                                                                        *)
+(*                                                                             *)
+(*    DEFINE_FUNCTION UserInterfaceVarsShouldRegister() {                      *)
+(*	UIVarRegister(groupKey|deviceKey, varKey, defaultValue)                *)
+(*    }                                                                        *)
+(*                                                                             *)
+(*    DEFINE_FUNCTION UserInterfaceHasRegistered(CHAR uiDeviceKey[]) {         *)
+(*	// called to show device has registered                                *)
+(*    }                                                                        *)
 (*                                                                             *)
 (*******************************************************************************)
 (*                                                                             *)
@@ -182,7 +194,7 @@ STRUCT _UI_POPUP {
     INTEGER timeOut
 }
 
-#INCLUDE 'UI Kit'
+#INCLUDE 'UI Kit Core'
 
 /*
 UIRegisterDevice(
@@ -490,7 +502,28 @@ DEFINE_FUNCTION UIVarRegister(CHAR deviceKey[], CHAR varKey[], CHAR initValue[])
 
     for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
 	if(group.index[n]) {
-	    UIRegisterVarForDeviceAtIndex(group.index[n], varKey, initValue)
+	    UIRegisterVarForDeviceAtIndex(group.index[n], varKey, initValue, FALSE)
+	}
+    }
+}
+
+DEFINE_FUNCTION UIVarRegisterWithFileStorage(CHAR deviceKey[], CHAR varKey[], CHAR initValue[]) {
+    _UI_GROUP_MEMBERS group
+    STACK_VAR INTEGER n
+    STACK_VAR INTEGER v
+
+    UIInitGroupMembersType(group)
+
+    if(UICheckKeyForGroup(deviceKey)) {
+	group.name = deviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(deviceKey)
+    }
+
+    for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
+	if(group.index[n]) {
+	    UIRegisterVarForDeviceAtIndex(group.index[n], varKey, initValue, TRUE)
 	}
     }
 }
@@ -1794,4 +1827,56 @@ DEFINE_FUNCTION UIPasswordSessionReset(CHAR deviceKey[]) {
     }
 }
 
+DEFINE_FUNCTION UISaveCurrentVarsToXML(CHAR uiDeviceKey[], CHAR fileName[]) {
+    STACK_VAR SLONG file
+    STACK_VAR SLONG result
+    STACK_VAR LONG pos
+    STACK_VAR CHAR dataString[1000000]
+    STACK_VAR INTEGER uiDeviceIndex
+    
+    dataString = ''
+    pos = 1
+    uiDeviceIndex = UIGetDeviceIndexFromKey(uiDeviceKey)
+    
+    VARIABLE_TO_XML(uiFileData[uiDeviceIndex], dataString, pos, 0)
+    file = FILE_OPEN(fileName, FILE_RW_NEW)
+    
+    if(file > 0) {
+	result = FILE_WRITE(file, dataString, LENGTH_STRING(dataString))
+	
+	result = FILE_CLOSE(file)
+    } else {
+	SEND_STRING 0, 'UI Kit Error - File Open Failed'
+    }
+}
+
+DEFINE_FUNCTION UILoadCurrentVarsFromXML(CHAR uiDeviceKey[], CHAR fileName) {
+    STACK_VAR SLONG file
+    STACK_VAR SLONG result
+    STACK_VAR LONG pos
+    STACK_VAR CHAR dataString[1000000]
+    STACK_VAR INTEGER uiDeviceIndex
+    STACK_VAR INTEGER n
+    
+    pos = 1
+    uiDeviceIndex = UIGetDeviceIndexFromKey(uiDeviceKey)
+    
+    file = FILE_OPEN(fileName, FILE_READ_ONLY)
+    
+    if(file > 0) {
+	result = FILE_READ(file, dataString, MAX_LENGTH_STRING(dataString))
+	
+	result = FILE_CLOSE(file)
+	
+	XML_TO_VARIABLE(uiFileData[uiDeviceIndex], dataString, pos, 0)
+	
+	for(n = 1; n <= MAX_LENGTH_ARRAY(uiFileData[uiDeviceIndex].var); n ++) {
+	    if(uiFileData[uiDeviceIndex].var[n].defined) {
+		UIVarDataRestore(uiDeviceIndex, uiFileData[uiDeviceIndex].var[n].key)
+	    }
+	}
+    } else {
+	SEND_STRING 0, 'UI Kit Error - File Open Failed'
+    }
+}
 
