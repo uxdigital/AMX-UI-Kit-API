@@ -648,6 +648,10 @@ DEFINE_FUNCTION UIListUpdateStatusInfo(INTEGER uiDataIndex) {
     if(ui[uiDataIndex].list.numberOfItems MOD ui[uiDataIndex].list.size) {
 	ui[uiDataIndex].list.numberOfPages ++
     }
+    
+    if(ui[uiDataIndex].list.numberOfPages == 0) {
+	ui[uiDataIndex].list.numberOfPages = 1
+    }
 }
 
 DEFINE_FUNCTION CHAR[UI_PASSWORD_MAX_LENGTH] UIPasswordReturnAsMasked(CHAR password[]) {
