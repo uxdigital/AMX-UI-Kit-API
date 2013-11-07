@@ -1575,6 +1575,31 @@ DEFINE_FUNCTION INTEGER UIListItemAdd(CHAR deviceKey[], CHAR itemKey[], CHAR tex
     return(nextIndex)
 }
 
+DEFINE_FUNCTION INTEGER UIListItemAddWithIcons(CHAR deviceKey[], CHAR itemKey[], CHAR text[], CHAR subText[], INTEGER iconOff, INTEGER iconOn) {
+    STACK_VAR INTEGER nextIndex
+    STACK_VAR INTEGER uiIndex
+
+    uiIndex = UIGetDeviceIndexFromKey(deviceKey)
+    nextIndex = UIListNextAvailableItemIndex(uiIndex)
+
+    if(nextIndex) {
+	ui[uiIndex].list.item[nextIndex].key = itemKey
+	ui[uiIndex].list.item[nextIndex].defined = TRUE
+	ui[uiIndex].list.item[nextIndex].text = text
+	ui[uiIndex].list.item[nextIndex].subText = subText
+	ui[uiIndex].list.item[nextIndex].iconOff = iconOff
+	ui[uiIndex].list.item[nextIndex].iconOn = iconOn
+	
+	if(!ui[uiIndex].list.listActive) {
+	    ui[uiIndex].list.listActive = TRUE
+	}
+    }
+
+    UIListUpdateStatusInfo(uiIndex)
+
+    return(nextIndex)
+}
+
 DEFINE_FUNCTION UIListItemSet(CHAR deviceKey[], CHAR itemKey[], CHAR text[], CHAR subText[], INTEGER icon, INTEGER index) {
     STACK_VAR INTEGER uiIndex
 

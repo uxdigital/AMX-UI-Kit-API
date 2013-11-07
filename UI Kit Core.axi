@@ -95,6 +95,8 @@ STRUCT _UI_LIST_ITEM {
     CHAR text[UI_LIST_ITEM_TEXT_MAX_LENGTH]
     CHAR subText[UI_LIST_ITEM_TEXT_MAX_LENGTH]
     INTEGER icon
+    INTEGER iconOff
+    INTEGER iconOn
 }
 
 STRUCT _UI_LIST {
@@ -541,6 +543,8 @@ DEFINE_FUNCTION UIListInitStruct(_UI_LIST list) {
 	list.item[n].text = ''
 	list.item[n].subText = ''
 	list.item[n].icon = 0
+	list.item[n].iconOff = 0
+	list.item[n].iconOn = 0
     }
 }
 
@@ -564,7 +568,15 @@ DEFINE_FUNCTION INTEGER UIListUpdateSend(DEV uiDevice, _UI_LIST list, INTEGER pa
     for(n = startAddress; n <= endAddress; n ++) {
 	listItem ++
 	UITextSend(uiDevice, n, UI_STATE_ALL, list.item[listItem + itemOffset].text)
-	UIIconSlotSend(uiDevice, n, UI_STATE_ALL, list.item[listItem + itemOffset].icon)
+	if(list.item[listItem + itemOffset].iconOff) {
+	    UIIconSlotSend(uiDevice, n, UI_STATE_OFF, list.item[listItem + itemOffset].iconOff)
+	    UIIconSlotSend(uiDevice, n, UI_STATE_ON, list.item[listItem + itemOffset].iconOn)
+	} else if(list.item[listItem + itemOffset].iconOn) {
+	    UIIconSlotSend(uiDevice, n, UI_STATE_OFF, list.item[listItem + itemOffset].iconOff)
+	    UIIconSlotSend(uiDevice, n, UI_STATE_ON, list.item[listItem + itemOffset].iconOn)
+	} else {
+	    UIIconSlotSend(uiDevice, n, UI_STATE_ALL, list.item[listItem + itemOffset].icon)
+	}
 	if(!list.item[listItem + itemOffset].defined) {
 	    if(list.inactiveItemsShouldHide) {
 		UIButtonHideSend(uiDevice, n)
