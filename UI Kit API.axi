@@ -1460,6 +1460,27 @@ DEFINE_FUNCTION UIListInit(CHAR deviceKey[], CHAR name[], INTEGER startAddress, 
     }
 }
 
+DEFINE_FUNCTION UIListSettings(CHAR deviceKey[], INTEGER inactiveItemsShouldHide, INTEGER inactiveItemsOpacity) {
+    _UI_GROUP_MEMBERS group
+    STACK_VAR INTEGER n
+
+    UIInitGroupMembersType(group)
+
+    if(UICheckKeyForGroup(deviceKey)) {
+	group.name = deviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(deviceKey)
+    }
+    
+    for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
+	if(group.index[n]) {
+	    ui[group.index[n]].list.inactiveItemsShouldHide = inactiveItemsShouldHide
+	    ui[group.index[n]].list.inactiveItemsOpacity = inactiveItemsOpacity
+	}
+    }
+}
+
 DEFINE_FUNCTION INTEGER UIListGetNumberOfItems(CHAR deviceKey[]) {
     _UI_GROUP_MEMBERS group
     STACK_VAR INTEGER n

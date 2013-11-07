@@ -106,6 +106,8 @@ STRUCT _UI_LIST {
     INTEGER size
     INTEGER numberOfPages
     INTEGER currentPage
+    INTEGER inactiveItemsShouldHide
+    INTEGER inactiveItemsOpacity
     CHAR header[UI_LIST_ITEM_TEXT_MAX_LENGTH]
     _UI_LIST_ITEM item[UI_LIST_MAX_ITEMS]
 }
@@ -530,6 +532,8 @@ DEFINE_FUNCTION UIListInitStruct(_UI_LIST list) {
     list.currentPage = 0
     list.numberOfItems = 0
     list.numberOfPages = 0
+    list.inactiveItemsShouldHide = 0
+    list.inactiveItemsOpacity = 100
     for(n = 1; n <= MAX_LENGTH_ARRAY(list.item); n ++) {
 	list.item[n].defined = 0
 	list.item[n].id = n
@@ -546,7 +550,7 @@ DEFINE_FUNCTION INTEGER UIListUpdateSend(DEV uiDevice, _UI_LIST list, INTEGER pa
     STACK_VAR INTEGER startAddress
     STACK_VAR INTEGER endAddress
     STACK_VAR INTEGER itemOffset
-
+    
     startAddress = list.itemStartAddress
     endAddress = list.itemStartAddress + (list.size - 1)
     listItem = 0;
@@ -561,6 +565,16 @@ DEFINE_FUNCTION INTEGER UIListUpdateSend(DEV uiDevice, _UI_LIST list, INTEGER pa
 	listItem ++
 	UITextSend(uiDevice, n, UI_STATE_ALL, list.item[listItem + itemOffset].text)
 	UIIconSlotSend(uiDevice, n, UI_STATE_ALL, list.item[listItem + itemOffset].icon)
+	if(!list.item[listItem + itemOffset].defined) {
+	    if(list.inactiveItemsShouldHide) {
+		UIButtonHideSend(uiDevice, n)
+	    } else {
+		// Opacity set here
+	    }
+	} else {
+	    // Opacity full here
+	    UIButtonShowSend(uiDevice, n)
+	}
     }
 
     startAddress = list.itemSubTextStartAddress
@@ -570,6 +584,16 @@ DEFINE_FUNCTION INTEGER UIListUpdateSend(DEV uiDevice, _UI_LIST list, INTEGER pa
     for(n = startAddress; n <= endAddress; n ++) {
 	listItem ++
 	UITextSend(uiDevice, n, UI_STATE_ALL, list.item[listItem + itemOffset].subText)
+	if(!list.item[listItem + itemOffset].defined) {
+	    if(list.inactiveItemsShouldHide) {
+		UIButtonHideSend(uiDevice, n)
+	    } else {
+		// Opacity set here
+	    }
+	} else {
+	    // Opacity full here
+	    UIButtonShowSend(uiDevice, n)
+	}
     }
 
     return(page)
