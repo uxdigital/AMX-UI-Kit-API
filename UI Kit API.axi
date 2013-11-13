@@ -1926,3 +1926,47 @@ DEFINE_FUNCTION UILoadCurrentVarsFromXML(CHAR uiDeviceKey[], CHAR fileName[]) {
     }
 }
 
+DEFINE_FUNCTION UIWaitInit(CHAR uiDeviceKey[], CHAR key[], CHAR name[], INTEGER titleAddress, INTEGER levelAddress, INTEGER waitTime, CHAR pageOnEnd[]) {
+    _UI_GROUP_MEMBERS group
+    STACK_VAR INTEGER n
+
+    UIInitGroupMembersType(group)
+
+    if(UICheckKeyForGroup(uiDeviceKey)) {
+	group.name = uiDeviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(uiDeviceKey)
+    }
+
+    for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
+	if(group.index[n]) {
+	    UIWaitInitData(group.index[n], key, name, titleAddress, levelAddress, waitTime, pageOnEnd)
+	}
+    }
+}
+
+DEFINE_FUNCTION UIWaitStart(CHAR uiDeviceKey[], CHAR pageName[]) {
+    _UI_GROUP_MEMBERS group
+    STACK_VAR INTEGER n
+
+    UIInitGroupMembersType(group)
+
+    if(UICheckKeyForGroup(uiDeviceKey)) {
+	group.name = uiDeviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(uiDeviceKey)
+    }
+
+    for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
+	if(group.index[n]) {
+	    if(ui[group.index[n]].waitData.waitTime && ui[group.index[n]].waitData.waitTimeCounting) {
+		UITextSend(ui[group.index[n]].device, ui[group.index[n]].waitData.titleAddress, UI_STATE_ALL, ui[group.index[n]].waitData.name)
+		UIPageSend(ui[group.index[n]].device, pageName)
+		ui[group.index[n]].waitData.waitActive = TRUE
+	    }
+	}
+    }
+}
+

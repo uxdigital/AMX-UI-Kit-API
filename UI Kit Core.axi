@@ -66,6 +66,7 @@ INTEGER UI_PASSWORD_MAX_LENGTH				= 50
 LONG UI_TIMELINE_1_SECOND_REPEAT_TIME[]			= { 1000 }
 LONG UI_TIMEOUT_CHECK_TIMELINE				= 3
 LONG UI_PASSWORD_TIMELINE_MASK				= 4
+LONG UI_WAIT_TIMELINE					= 5
 
 INTEGER UI_MAX_POPUPS_FOR_PAGE_TYPE			= 10
 INTEGER UI_MAX_PAGES					= 100
@@ -114,6 +115,17 @@ STRUCT _UI_LIST {
     _UI_LIST_ITEM item[UI_LIST_MAX_ITEMS]
 }
 
+STRUCT _UI_WAIT {
+    INTEGER waitActive
+    INTEGER waitTime
+    INTEGER waitTimeCounting
+    CHAR key[UI_KEY_MAX_LENGTH]
+    INTEGER levelAddress
+    CHAR name[255]
+    INTEGER titleAddress
+    CHAR pageOnEnd[UI_PAGE_NAME_MAX_LENGTH]
+}
+
 STRUCT _UI_DATA {
     INTEGER id
     INTEGER defined
@@ -133,6 +145,7 @@ STRUCT _UI_DATA {
     _UI_ACTIONSHEET actionSheet
     _UI_LIST list
     _UI_PASSWORD_SESSION password
+    _UI_WAIT waitData
 }
 
 STRUCT _UI_PAGE {
@@ -186,6 +199,14 @@ DEFINE_FUNCTION UIInitData() {
 	ui[n].password.passwordAttempt = ''
 	ui[n].password.showingLastCharacter = 0
 	ui[n].password.inSession = 0
+	ui[n].waitData.key = ''
+	ui[n].waitData.name = ''
+	ui[n].waitData.waitActive = 0
+	ui[n].waitData.waitTime = 0
+	ui[n].waitData.waitTimeCounting = 0
+	ui[n].waitData.titleAddress = 0
+	ui[n].waitData.levelAddress = 0
+	ui[n].waitData.pageOnEnd = ''
     }
     
     for(n = 1; n <= MAX_LENGTH_ARRAY(uiFileData); n ++) {
@@ -667,6 +688,17 @@ DEFINE_FUNCTION CHAR[UI_PASSWORD_MAX_LENGTH] UIPasswordReturnAsMasked(CHAR passw
     return result
 }
 
+DEFINE_FUNCTION UIWaitInitData (INTEGER uiDataIndex, CHAR key[], CHAR name[], INTEGER titleAddress, INTEGER levelAddress, INTEGER waitTime, CHAR pageOnEnd[]) {
+    ui[uiDataIndex].waitData.waitActive = FALSE
+    ui[uiDataIndex].waitData.key = key
+    ui[uiDataIndex].waitData.name = name
+    ui[uiDataIndex].waitData.titleAddress = titleAddress
+    ui[uiDataIndex].waitData.levelAddress = levelAddress
+    ui[uiDataIndex].waitData.pageOnEnd = pageOnEnd
+    ui[uiDataIndex].waitData.waitTime = waitTime
+    ui[uiDataIndex].waitData.waitTimeCounting = waitTime
+}
+
 DEFINE_START
 
 UIInitData()
@@ -676,6 +708,7 @@ UserInterfaceVarsShouldRegister()
 UserInterfacesRegisteredCallback()
 wait 10 {
     TIMELINE_CREATE(UI_TIMEOUT_CHECK_TIMELINE, UI_TIMELINE_1_SECOND_REPEAT_TIME, LENGTH_ARRAY(UI_TIMELINE_1_SECOND_REPEAT_TIME), TIMELINE_ABSOLUTE, TIMELINE_REPEAT)
+    TIMELINE_CREATE(UI_WAIT_TIMELINE, UI_TIMELINE_1_SECOND_REPEAT_TIME, LENGTH_ARRAY(UI_TIMELINE_1_SECOND_REPEAT_TIME), TIMELINE_ABSOLUTE, TIMELINE_REPEAT)
 }
 
 DEFINE_EVENT
@@ -687,7 +720,7 @@ TIMELINE_EVENT[UI_TIMEOUT_CHECK_TIMELINE] {
 	if(ui[n].defined) {
 	    if(ui[n].pageTimeoutCounting) {
 		ui[n].pageTimeoutCounting --
-
+		
 		if(ui[n].pageTimeoutCounting == 0) {
 		    ui[n].pageTimeout = 0
 		    if(LENGTH_STRING(ui[n].pageOnTimeout)) {
@@ -698,6 +731,35 @@ TIMELINE_EVENT[UI_TIMEOUT_CHECK_TIMELINE] {
 			ui[n].pageCurrent = ui[n].pagePrevious
 		    }
 		    ui[n].pagePrevious = ''
+		}
+	    }
+	} else {
+	    break
+	}
+    }
+}
+
+TIMELINE_EVENT[UI_WAIT_TIMELINE] {
+    STACK_VAR INTEGER n
+    STACK_VAR SLONG levelVal
+    
+    for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
+	if(ui[n].defined) {
+	    if(ui[n].waitData.waitActive) {
+		if(ui[n].waitData.waitTimeCounting) {
+		    ui[n].waitData.waitTimeCounting --
+		    
+		    if(ui[n].waitData.waitTimeCounting == 0) {
+			if(LENGTH_STRING(ui[n].waitData.pageOnEnd)) {
+			    UIPageSend(ui[n].device, ui[n].waitData.pageOnEnd)
+			    ui[n].pageCurrent = ui[n].waitData.pageOnEnd
+			}
+			ui[n].waitData.waitActive = FALSE
+			ui[n].waitData.waitTime = 0
+		    } else {
+			levelVal = ScaleRange(ui[n].waitData.waitTimeCounting, 0, ui[n].waitData.waitTime, 255, 0)
+			UILevelSend(ui[n].device, ui[n].waitData.levelAddress, TYPE_CAST(levelVal))
+		    }
 		}
 	    }
 	}
