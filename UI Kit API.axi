@@ -1737,7 +1737,7 @@ DEFINE_FUNCTION INTEGER UIListItemOnListIsSelected(CHAR deviceKey[], INTEGER ite
     }
 }
 
-DEFINE_FUNCTION INTEGER UIGetButtonHold(CHAR deviceKey[]) {
+DEFINE_FUNCTION INTEGER UIButtonHoldGet(CHAR deviceKey[]) {
     STACK_VAR INTEGER n
 
     if(UICheckKeyForGroup(deviceKey)) {
@@ -1747,7 +1747,7 @@ DEFINE_FUNCTION INTEGER UIGetButtonHold(CHAR deviceKey[]) {
     }
 }
 
-DEFINE_FUNCTION UISetButtonHold(CHAR deviceKey[], INTEGER buttonValue) {
+DEFINE_FUNCTION UIButtonHoldSet(CHAR deviceKey[], INTEGER buttonValue) {
     STACK_VAR INTEGER n
 
     if(!UICheckKeyForGroup(deviceKey)) {
