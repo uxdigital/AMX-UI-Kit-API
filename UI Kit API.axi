@@ -21,16 +21,28 @@ PROGRAM_NAME='UI Kit API'
 (*                                                                             *)
 (*******************************************************************************)
 (*                                                                             *)
-(*                            UI Kit API v1-01                                 *)
-(*                      also includes 'UI Kit v1-01'                           *)
+(*                           UI Kit API v2.0                                   *)
+(*                       also includes 'UI Kit Core'                           *)
 (*                                                                             *)
 (*            Written by Mike Jobson (Control Designs Software Ltd)            *)
 (*                                                                             *)
 (** REVISION HISTORY ***********************************************************)
 (*                                                                             *)
-(*  v1-01 (beta 3)                                                             *)
+(*  v2.0                                                                       *)
 (*  First release developed in beta only at this point in time                 *)
-(*  No known issues - Notes to follow in coming update                         *)
+(*  Note this requires the following callbacks to be included in your code:    *)
+(*                                                                             *)
+(*    DEFINE_FUNCTION UserInterfacesShouldRegister() {                         *)
+(*	UIRegisterDevice(deviceKey, deviceName, groupKey, device)              *)
+(*    }                                                                        *)
+(*                                                                             *)
+(*    DEFINE_FUNCTION UserInterfaceVarsShouldRegister() {                      *)
+(*	UIVarRegister(groupKey|deviceKey, varKey, defaultValue)                *)
+(*    }                                                                        *)
+(*                                                                             *)
+(*    DEFINE_FUNCTION UserInterfaceHasRegistered(CHAR uiDeviceKey[]) {         *)
+(*	// called to show device has registered                                *)
+(*    }                                                                        *)
 (*                                                                             *)
 (*******************************************************************************)
 (*                                                                             *)
@@ -182,7 +194,7 @@ STRUCT _UI_POPUP {
     INTEGER timeOut
 }
 
-#INCLUDE 'UI Kit'
+#INCLUDE 'UI Kit Core'
 
 /*
 UIRegisterDevice(
@@ -490,7 +502,28 @@ DEFINE_FUNCTION UIVarRegister(CHAR deviceKey[], CHAR varKey[], CHAR initValue[])
 
     for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
 	if(group.index[n]) {
-	    UIRegisterVarForDeviceAtIndex(group.index[n], varKey, initValue)
+	    UIRegisterVarForDeviceAtIndex(group.index[n], varKey, initValue, FALSE)
+	}
+    }
+}
+
+DEFINE_FUNCTION UIVarRegisterWithFileStorage(CHAR deviceKey[], CHAR varKey[], CHAR initValue[]) {
+    _UI_GROUP_MEMBERS group
+    STACK_VAR INTEGER n
+    STACK_VAR INTEGER v
+
+    UIInitGroupMembersType(group)
+
+    if(UICheckKeyForGroup(deviceKey)) {
+	group.name = deviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(deviceKey)
+    }
+
+    for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
+	if(group.index[n]) {
+	    UIRegisterVarForDeviceAtIndex(group.index[n], varKey, initValue, TRUE)
 	}
     }
 }
@@ -1427,6 +1460,27 @@ DEFINE_FUNCTION UIListInit(CHAR deviceKey[], CHAR name[], INTEGER startAddress, 
     }
 }
 
+DEFINE_FUNCTION UIListSettings(CHAR deviceKey[], INTEGER inactiveItemsShouldHide, INTEGER inactiveItemsOpacity) {
+    _UI_GROUP_MEMBERS group
+    STACK_VAR INTEGER n
+
+    UIInitGroupMembersType(group)
+
+    if(UICheckKeyForGroup(deviceKey)) {
+	group.name = deviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(deviceKey)
+    }
+    
+    for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
+	if(group.index[n]) {
+	    ui[group.index[n]].list.inactiveItemsShouldHide = inactiveItemsShouldHide
+	    ui[group.index[n]].list.inactiveItemsOpacity = inactiveItemsOpacity
+	}
+    }
+}
+
 DEFINE_FUNCTION INTEGER UIListGetNumberOfItems(CHAR deviceKey[]) {
     _UI_GROUP_MEMBERS group
     STACK_VAR INTEGER n
@@ -1511,6 +1565,31 @@ DEFINE_FUNCTION INTEGER UIListItemAdd(CHAR deviceKey[], CHAR itemKey[], CHAR tex
 	ui[uiIndex].list.item[nextIndex].subText = subText
 	ui[uiIndex].list.item[nextIndex].icon = icon
 
+	if(!ui[uiIndex].list.listActive) {
+	    ui[uiIndex].list.listActive = TRUE
+	}
+    }
+
+    UIListUpdateStatusInfo(uiIndex)
+
+    return(nextIndex)
+}
+
+DEFINE_FUNCTION INTEGER UIListItemAddWithIcons(CHAR deviceKey[], CHAR itemKey[], CHAR text[], CHAR subText[], INTEGER iconOff, INTEGER iconOn) {
+    STACK_VAR INTEGER nextIndex
+    STACK_VAR INTEGER uiIndex
+
+    uiIndex = UIGetDeviceIndexFromKey(deviceKey)
+    nextIndex = UIListNextAvailableItemIndex(uiIndex)
+
+    if(nextIndex) {
+	ui[uiIndex].list.item[nextIndex].key = itemKey
+	ui[uiIndex].list.item[nextIndex].defined = TRUE
+	ui[uiIndex].list.item[nextIndex].text = text
+	ui[uiIndex].list.item[nextIndex].subText = subText
+	ui[uiIndex].list.item[nextIndex].iconOff = iconOff
+	ui[uiIndex].list.item[nextIndex].iconOn = iconOn
+	
 	if(!ui[uiIndex].list.listActive) {
 	    ui[uiIndex].list.listActive = TRUE
 	}
@@ -1658,7 +1737,7 @@ DEFINE_FUNCTION INTEGER UIListItemOnListIsSelected(CHAR deviceKey[], INTEGER ite
     }
 }
 
-DEFINE_FUNCTION INTEGER UIGetButtonHold(CHAR deviceKey[]) {
+DEFINE_FUNCTION INTEGER UIButtonHoldGet(CHAR deviceKey[]) {
     STACK_VAR INTEGER n
 
     if(UICheckKeyForGroup(deviceKey)) {
@@ -1668,7 +1747,7 @@ DEFINE_FUNCTION INTEGER UIGetButtonHold(CHAR deviceKey[]) {
     }
 }
 
-DEFINE_FUNCTION UISetButtonHold(CHAR deviceKey[], INTEGER buttonValue) {
+DEFINE_FUNCTION UIButtonHoldSet(CHAR deviceKey[], INTEGER buttonValue) {
     STACK_VAR INTEGER n
 
     if(!UICheckKeyForGroup(deviceKey)) {
@@ -1794,4 +1873,100 @@ DEFINE_FUNCTION UIPasswordSessionReset(CHAR deviceKey[]) {
     }
 }
 
+DEFINE_FUNCTION UISaveCurrentVarsToXML(CHAR uiDeviceKey[], CHAR fileName[]) {
+    STACK_VAR SLONG file
+    STACK_VAR SLONG result
+    STACK_VAR LONG pos
+    STACK_VAR CHAR dataString[1000000]
+    STACK_VAR INTEGER uiDeviceIndex
+    
+    dataString = ''
+    pos = 1
+    uiDeviceIndex = UIGetDeviceIndexFromKey(uiDeviceKey)
+    
+    VARIABLE_TO_XML(uiFileData[uiDeviceIndex], dataString, pos, 0)
+    file = FILE_OPEN(fileName, FILE_RW_NEW)
+    
+    if(file > 0) {
+	result = FILE_WRITE(file, dataString, LENGTH_STRING(dataString))
+	
+	result = FILE_CLOSE(file)
+    } else {
+	SEND_STRING 0, 'UI Kit Error - File Open Failed'
+    }
+}
+
+DEFINE_FUNCTION UILoadCurrentVarsFromXML(CHAR uiDeviceKey[], CHAR fileName[]) {
+    STACK_VAR SLONG file
+    STACK_VAR SLONG result
+    STACK_VAR LONG pos
+    STACK_VAR CHAR dataString[1000000]
+    STACK_VAR INTEGER uiDeviceIndex
+    STACK_VAR INTEGER n
+    
+    pos = 1
+    uiDeviceIndex = UIGetDeviceIndexFromKey(uiDeviceKey)
+    
+    file = FILE_OPEN(fileName, FILE_READ_ONLY)
+    
+    if(file > 0) {
+	result = FILE_READ(file, dataString, MAX_LENGTH_STRING(dataString))
+	
+	result = FILE_CLOSE(file)
+	
+	XML_TO_VARIABLE(uiFileData[uiDeviceIndex], dataString, pos, 0)
+	
+	for(n = 1; n <= MAX_LENGTH_ARRAY(uiFileData[uiDeviceIndex].var); n ++) {
+	    if(uiFileData[uiDeviceIndex].var[n].defined) {
+		UIVarDataRestore(uiDeviceIndex, uiFileData[uiDeviceIndex].var[n].key)
+	    }
+	}
+    } else {
+	SEND_STRING 0, 'UI Kit Error - File Open Failed'
+    }
+}
+
+DEFINE_FUNCTION UIWaitInit(CHAR uiDeviceKey[], CHAR key[], CHAR name[], INTEGER titleAddress, INTEGER levelAddress, INTEGER waitTime, CHAR pageOnEnd[]) {
+    _UI_GROUP_MEMBERS group
+    STACK_VAR INTEGER n
+
+    UIInitGroupMembersType(group)
+
+    if(UICheckKeyForGroup(uiDeviceKey)) {
+	group.name = uiDeviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(uiDeviceKey)
+    }
+
+    for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
+	if(group.index[n]) {
+	    UIWaitInitData(group.index[n], key, name, titleAddress, levelAddress, waitTime, pageOnEnd)
+	}
+    }
+}
+
+DEFINE_FUNCTION UIWaitStart(CHAR uiDeviceKey[], CHAR pageName[]) {
+    _UI_GROUP_MEMBERS group
+    STACK_VAR INTEGER n
+
+    UIInitGroupMembersType(group)
+
+    if(UICheckKeyForGroup(uiDeviceKey)) {
+	group.name = uiDeviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(uiDeviceKey)
+    }
+
+    for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
+	if(group.index[n]) {
+	    if(ui[group.index[n]].waitData.waitTime && ui[group.index[n]].waitData.waitTimeCounting) {
+		UITextSend(ui[group.index[n]].device, ui[group.index[n]].waitData.titleAddress, UI_STATE_ALL, ui[group.index[n]].waitData.name)
+		UIPageSend(ui[group.index[n]].device, pageName)
+		ui[group.index[n]].waitData.waitActive = TRUE
+	    }
+	}
+    }
+}
 

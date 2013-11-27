@@ -1,4 +1,4 @@
-PROGRAM_NAME='UI Kit'
+PROGRAM_NAME='UI Kit Core'
 (***********************************************************)
 (*  FILE_LAST_MODIFIED_ON: 06/19/2013  AT: 14:51:29        *)
 (*******************************************************************************)
@@ -21,16 +21,16 @@ PROGRAM_NAME='UI Kit'
 (*                                                                             *)
 (*******************************************************************************)
 (*                                                                             *)
-(*                         UI Kit v1-01 (include)                              *)
-(*                     for use with 'UI Kit API v1-01'                         *)
+(*                          UI Kit Core (include)                              *)
+(*                       for use with 'UI Kit API v2'                          *)
 (*                                                                             *)
 (*            Written by Mike Jobson (Control Designs Software Ltd)            *)
 (*                                                                             *)
 (** REVISION HISTORY ***********************************************************)
 (*                                                                             *)
-(*  v1-01 (beta 2)                                                             *)
+(*  v2 (beta)                                                                  *)
 (*  First release developed in beta only at this point in time                 *)
-(*  No known issues                                                            *)
+(*  Documentation to follow soon                                               *)
 (*                                                                             *)
 (*******************************************************************************)
 (*                                                                             *)
@@ -66,6 +66,7 @@ INTEGER UI_PASSWORD_MAX_LENGTH				= 50
 LONG UI_TIMELINE_1_SECOND_REPEAT_TIME[]			= { 1000 }
 LONG UI_TIMEOUT_CHECK_TIMELINE				= 3
 LONG UI_PASSWORD_TIMELINE_MASK				= 4
+LONG UI_WAIT_TIMELINE					= 5
 
 INTEGER UI_MAX_POPUPS_FOR_PAGE_TYPE			= 10
 INTEGER UI_MAX_PAGES					= 100
@@ -85,6 +86,7 @@ STRUCT _UI_VAR {
     INTEGER defined
     CHAR key[UI_KEY_MAX_LENGTH]
     CHAR value[UI_VAR_MAX_VALUE_LENGTH]
+    INTEGER includeInFileData
 }
 
 STRUCT _UI_LIST_ITEM {
@@ -94,6 +96,8 @@ STRUCT _UI_LIST_ITEM {
     CHAR text[UI_LIST_ITEM_TEXT_MAX_LENGTH]
     CHAR subText[UI_LIST_ITEM_TEXT_MAX_LENGTH]
     INTEGER icon
+    INTEGER iconOff
+    INTEGER iconOn
 }
 
 STRUCT _UI_LIST {
@@ -105,8 +109,21 @@ STRUCT _UI_LIST {
     INTEGER size
     INTEGER numberOfPages
     INTEGER currentPage
+    INTEGER inactiveItemsShouldHide
+    INTEGER inactiveItemsOpacity
     CHAR header[UI_LIST_ITEM_TEXT_MAX_LENGTH]
     _UI_LIST_ITEM item[UI_LIST_MAX_ITEMS]
+}
+
+STRUCT _UI_WAIT {
+    INTEGER waitActive
+    INTEGER waitTime
+    INTEGER waitTimeCounting
+    CHAR key[UI_KEY_MAX_LENGTH]
+    INTEGER levelAddress
+    CHAR name[255]
+    INTEGER titleAddress
+    CHAR pageOnEnd[UI_PAGE_NAME_MAX_LENGTH]
 }
 
 STRUCT _UI_DATA {
@@ -128,6 +145,7 @@ STRUCT _UI_DATA {
     _UI_ACTIONSHEET actionSheet
     _UI_LIST list
     _UI_PASSWORD_SESSION password
+    _UI_WAIT waitData
 }
 
 STRUCT _UI_PAGE {
@@ -138,11 +156,16 @@ STRUCT _UI_PAGE {
     INTEGER numberOfPopupsDefined
 }
 
+STRUCT _UI_FILE_DATA {
+    _UI_VAR var[UI_MAX_NUMBER_OF_VARS]
+}
+
 
 DEFINE_VARIABLE
 
 VOLATILE _UI_DATA ui[UI_MAX_DEVICES]
 VOLATILE _UI_PAGE uiPages[UI_MAX_PAGES]
+VOLATILE _UI_FILE_DATA uiFileData[UI_MAX_DEVICES]
 
 DEFINE_FUNCTION UIInitData() {
     STACK_VAR INTEGER n
@@ -168,6 +191,7 @@ DEFINE_FUNCTION UIInitData() {
 	    ui[n].var[v].defined = FALSE
 	    ui[n].var[v].key = ''
 	    ui[n].var[v].value = ''
+	    ui[n].var[v].includeInFileData = FALSE
 	}
 	UIListInitStruct(ui[n].list)
 	UIActionSheetInit(ui[n].actionSheet)
@@ -175,6 +199,110 @@ DEFINE_FUNCTION UIInitData() {
 	ui[n].password.passwordAttempt = ''
 	ui[n].password.showingLastCharacter = 0
 	ui[n].password.inSession = 0
+	ui[n].waitData.key = ''
+	ui[n].waitData.name = ''
+	ui[n].waitData.waitActive = 0
+	ui[n].waitData.waitTime = 0
+	ui[n].waitData.waitTimeCounting = 0
+	ui[n].waitData.titleAddress = 0
+	ui[n].waitData.levelAddress = 0
+	ui[n].waitData.pageOnEnd = ''
+    }
+    
+    for(n = 1; n <= MAX_LENGTH_ARRAY(uiFileData); n ++) {
+	for(v = 1; v <= MAX_LENGTH_ARRAY(uiFileData[n].var); v ++) {
+	    uiFileData[n].var[v].id = v
+	    uiFileData[n].var[v].defined = FALSE
+	    uiFileData[n].var[v].key = ''
+	    uiFileData[n].var[v].value = ''
+	    uiFileData[n].var[v].includeInFileData = FALSE
+	}
+    }
+}
+
+DEFINE_FUNCTION UIVarDataCopy(INTEGER uiIndex, CHAR varKey[]) {
+    STACK_VAR INTEGER n
+    STACK_VAR INTEGER varIndex1
+    STACK_VAR INTEGER varIndex2
+
+    varIndex1 = 0
+    varIndex2 = 0
+    
+    if(LENGTH_STRING(varKey)) {
+	for(n = 1; n <= MAX_LENGTH_ARRAY(ui[uiIndex].var); n ++) {
+	    if(ui[uiIndex].var[n].key == varKey) {
+		varIndex1 = n
+		break
+	    }
+	}
+	
+	for(n = 1; n <= MAX_LENGTH_ARRAY(uiFileData[uiIndex].var); n ++) {
+	    if(uiFileData[uiIndex].var[n].key == varKey) {
+		varIndex2 = n
+		break
+	    }
+	}
+	
+	if(!varIndex2) {
+	    for(n = 1; n <= MAX_LENGTH_ARRAY(uiFileData[uiIndex].var); n ++) {
+		if(!uiFileData[uiIndex].var[n].defined) {
+		    varIndex2 = n
+		    break
+		}
+	    }
+	}
+	
+	if(varIndex1 && varIndex2) {
+	    uiFileData[uiIndex].var[varIndex2] = ui[uiIndex].var[varIndex1]
+	}
+    }
+}
+
+DEFINE_FUNCTION UIVarDataRestore(INTEGER uiIndex, CHAR varKey[]) {
+    STACK_VAR INTEGER n
+    STACK_VAR INTEGER varIndex1
+    STACK_VAR INTEGER varIndex2
+
+    varIndex1 = 0
+    varIndex2 = 0
+    
+    if(LENGTH_STRING(varKey)) {
+	for(n = 1; n <= MAX_LENGTH_ARRAY(uiFileData[uiIndex].var); n ++) {
+	    if(uiFileData[uiIndex].var[n].key == varKey) {
+		varIndex1 = n
+		break
+	    }
+	}
+	
+	for(n = 1; n <= MAX_LENGTH_ARRAY(ui[uiIndex].var); n ++) {
+	    if(ui[uiIndex].var[n].key == varKey) {
+		varIndex2 = n
+		break
+	    }
+	}
+	
+	if(!varIndex2) {
+	    for(n = 1; n <= MAX_LENGTH_ARRAY(ui[uiIndex].var); n ++) {
+		if(!ui[uiIndex].var[n].defined) {
+		    varIndex2 = n
+		    break
+		}
+	    }
+	}
+	
+	if(varIndex1 && varIndex2) {
+	    ui[uiIndex].var[varIndex2] = uiFileData[uiIndex].var[varIndex1]
+	}
+    }
+}
+
+DEFINE_FUNCTION UserInterfacesRegisteredCallback() {
+    STACK_VAR INTEGER n
+    
+    for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
+	if(ui[n].defined) {
+	    UserInterfaceHasRegistered(ui[n].key)
+	}
     }
 }
 
@@ -209,7 +337,7 @@ DEFINE_FUNCTION INTEGER UIGetNextUndefinedVarIndex(INTEGER deviceIndex) {
     return(result)
 }
 
-DEFINE_FUNCTION INTEGER UIRegisterVarForDeviceAtIndex(INTEGER deviceIndex, CHAR varKey[], CHAR initVal[]) {
+DEFINE_FUNCTION INTEGER UIRegisterVarForDeviceAtIndex(INTEGER deviceIndex, CHAR varKey[], CHAR initVal[], INTEGER includeInFileData) {
     STACK_VAR INTEGER nextVarIndex
 
     nextVarIndex = UIGetNextUndefinedVarIndex(deviceIndex)
@@ -218,6 +346,7 @@ DEFINE_FUNCTION INTEGER UIRegisterVarForDeviceAtIndex(INTEGER deviceIndex, CHAR 
 	ui[deviceIndex].var[nextVarIndex].defined = TRUE
 	ui[deviceIndex].var[nextVarIndex].key = varKey
 	ui[deviceIndex].var[nextVarIndex].value = initVal
+	ui[deviceIndex].var[nextVarIndex].includeInFileData = includeInFileData
     }
 
     return(nextVarIndex)
@@ -246,6 +375,10 @@ DEFINE_FUNCTION UISetVarForDeviceAtIndex(INTEGER deviceIndex, CHAR varKey[], CHA
 
     if(varIndex) {
 	ui[deviceIndex].var[varIndex].value = value
+	
+	if(ui[deviceIndex].var[varIndex].includeInFileData) {
+	    UIVarDataCopy(deviceIndex, varKey)
+	}
     }
 }
 
@@ -422,6 +555,8 @@ DEFINE_FUNCTION UIListInitStruct(_UI_LIST list) {
     list.currentPage = 0
     list.numberOfItems = 0
     list.numberOfPages = 0
+    list.inactiveItemsShouldHide = 0
+    list.inactiveItemsOpacity = 100
     for(n = 1; n <= MAX_LENGTH_ARRAY(list.item); n ++) {
 	list.item[n].defined = 0
 	list.item[n].id = n
@@ -429,6 +564,8 @@ DEFINE_FUNCTION UIListInitStruct(_UI_LIST list) {
 	list.item[n].text = ''
 	list.item[n].subText = ''
 	list.item[n].icon = 0
+	list.item[n].iconOff = 0
+	list.item[n].iconOn = 0
     }
 }
 
@@ -438,7 +575,7 @@ DEFINE_FUNCTION INTEGER UIListUpdateSend(DEV uiDevice, _UI_LIST list, INTEGER pa
     STACK_VAR INTEGER startAddress
     STACK_VAR INTEGER endAddress
     STACK_VAR INTEGER itemOffset
-
+    
     startAddress = list.itemStartAddress
     endAddress = list.itemStartAddress + (list.size - 1)
     listItem = 0;
@@ -452,7 +589,25 @@ DEFINE_FUNCTION INTEGER UIListUpdateSend(DEV uiDevice, _UI_LIST list, INTEGER pa
     for(n = startAddress; n <= endAddress; n ++) {
 	listItem ++
 	UITextSend(uiDevice, n, UI_STATE_ALL, list.item[listItem + itemOffset].text)
-	UIIconSlotSend(uiDevice, n, UI_STATE_ALL, list.item[listItem + itemOffset].icon)
+	if(list.item[listItem + itemOffset].iconOff) {
+	    UIIconSlotSend(uiDevice, n, UI_STATE_OFF, list.item[listItem + itemOffset].iconOff)
+	    UIIconSlotSend(uiDevice, n, UI_STATE_ON, list.item[listItem + itemOffset].iconOn)
+	} else if(list.item[listItem + itemOffset].iconOn) {
+	    UIIconSlotSend(uiDevice, n, UI_STATE_OFF, list.item[listItem + itemOffset].iconOff)
+	    UIIconSlotSend(uiDevice, n, UI_STATE_ON, list.item[listItem + itemOffset].iconOn)
+	} else {
+	    UIIconSlotSend(uiDevice, n, UI_STATE_ALL, list.item[listItem + itemOffset].icon)
+	}
+	if(!list.item[listItem + itemOffset].defined) {
+	    if(list.inactiveItemsShouldHide) {
+		UIButtonHideSend(uiDevice, n)
+	    } else {
+		// Opacity set here
+	    }
+	} else {
+	    // Opacity full here
+	    UIButtonShowSend(uiDevice, n)
+	}
     }
 
     startAddress = list.itemSubTextStartAddress
@@ -462,6 +617,16 @@ DEFINE_FUNCTION INTEGER UIListUpdateSend(DEV uiDevice, _UI_LIST list, INTEGER pa
     for(n = startAddress; n <= endAddress; n ++) {
 	listItem ++
 	UITextSend(uiDevice, n, UI_STATE_ALL, list.item[listItem + itemOffset].subText)
+	if(!list.item[listItem + itemOffset].defined) {
+	    if(list.inactiveItemsShouldHide) {
+		UIButtonHideSend(uiDevice, n)
+	    } else {
+		// Opacity set here
+	    }
+	} else {
+	    // Opacity full here
+	    UIButtonShowSend(uiDevice, n)
+	}
     }
 
     return(page)
@@ -504,6 +669,10 @@ DEFINE_FUNCTION UIListUpdateStatusInfo(INTEGER uiDataIndex) {
     if(ui[uiDataIndex].list.numberOfItems MOD ui[uiDataIndex].list.size) {
 	ui[uiDataIndex].list.numberOfPages ++
     }
+    
+    if(ui[uiDataIndex].list.numberOfPages == 0) {
+	ui[uiDataIndex].list.numberOfPages = 1
+    }
 }
 
 DEFINE_FUNCTION CHAR[UI_PASSWORD_MAX_LENGTH] UIPasswordReturnAsMasked(CHAR password[]) {
@@ -519,14 +688,27 @@ DEFINE_FUNCTION CHAR[UI_PASSWORD_MAX_LENGTH] UIPasswordReturnAsMasked(CHAR passw
     return result
 }
 
+DEFINE_FUNCTION UIWaitInitData (INTEGER uiDataIndex, CHAR key[], CHAR name[], INTEGER titleAddress, INTEGER levelAddress, INTEGER waitTime, CHAR pageOnEnd[]) {
+    ui[uiDataIndex].waitData.waitActive = FALSE
+    ui[uiDataIndex].waitData.key = key
+    ui[uiDataIndex].waitData.name = name
+    ui[uiDataIndex].waitData.titleAddress = titleAddress
+    ui[uiDataIndex].waitData.levelAddress = levelAddress
+    ui[uiDataIndex].waitData.pageOnEnd = pageOnEnd
+    ui[uiDataIndex].waitData.waitTime = waitTime
+    ui[uiDataIndex].waitData.waitTimeCounting = waitTime
+}
+
 DEFINE_START
 
 UIInitData()
 UIInitPages()
 UserInterfacesShouldRegister()
 UserInterfaceVarsShouldRegister()
+UserInterfacesRegisteredCallback()
 wait 10 {
     TIMELINE_CREATE(UI_TIMEOUT_CHECK_TIMELINE, UI_TIMELINE_1_SECOND_REPEAT_TIME, LENGTH_ARRAY(UI_TIMELINE_1_SECOND_REPEAT_TIME), TIMELINE_ABSOLUTE, TIMELINE_REPEAT)
+    TIMELINE_CREATE(UI_WAIT_TIMELINE, UI_TIMELINE_1_SECOND_REPEAT_TIME, LENGTH_ARRAY(UI_TIMELINE_1_SECOND_REPEAT_TIME), TIMELINE_ABSOLUTE, TIMELINE_REPEAT)
 }
 
 DEFINE_EVENT
@@ -538,7 +720,7 @@ TIMELINE_EVENT[UI_TIMEOUT_CHECK_TIMELINE] {
 	if(ui[n].defined) {
 	    if(ui[n].pageTimeoutCounting) {
 		ui[n].pageTimeoutCounting --
-
+		
 		if(ui[n].pageTimeoutCounting == 0) {
 		    ui[n].pageTimeout = 0
 		    if(LENGTH_STRING(ui[n].pageOnTimeout)) {
@@ -549,6 +731,35 @@ TIMELINE_EVENT[UI_TIMEOUT_CHECK_TIMELINE] {
 			ui[n].pageCurrent = ui[n].pagePrevious
 		    }
 		    ui[n].pagePrevious = ''
+		}
+	    }
+	} else {
+	    break
+	}
+    }
+}
+
+TIMELINE_EVENT[UI_WAIT_TIMELINE] {
+    STACK_VAR INTEGER n
+    STACK_VAR SLONG levelVal
+    
+    for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
+	if(ui[n].defined) {
+	    if(ui[n].waitData.waitActive) {
+		if(ui[n].waitData.waitTimeCounting) {
+		    ui[n].waitData.waitTimeCounting --
+		    
+		    if(ui[n].waitData.waitTimeCounting == 0) {
+			if(LENGTH_STRING(ui[n].waitData.pageOnEnd)) {
+			    UIPageSend(ui[n].device, ui[n].waitData.pageOnEnd)
+			    ui[n].pageCurrent = ui[n].waitData.pageOnEnd
+			}
+			ui[n].waitData.waitActive = FALSE
+			ui[n].waitData.waitTime = 0
+		    } else {
+			levelVal = ScaleRange(ui[n].waitData.waitTimeCounting, 0, ui[n].waitData.waitTime, 255, 0)
+			UILevelSend(ui[n].device, ui[n].waitData.levelAddress, TYPE_CAST(levelVal))
+		    }
 		}
 	    }
 	}
