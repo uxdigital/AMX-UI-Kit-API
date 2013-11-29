@@ -209,8 +209,6 @@ DEFINE_FUNCTION INTEGER UIRegisterDevice(CHAR key[], CHAR name[], CHAR group[], 
     STACK_VAR INTEGER n
     STACK_VAR INTEGER index
 
-    index = 0
-
     for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
 	if(!ui[n].defined) {
 	    index = n;
@@ -224,38 +222,31 @@ DEFINE_FUNCTION INTEGER UIRegisterDevice(CHAR key[], CHAR name[], CHAR group[], 
 	ui[index].name = name
 	ui[index].device = device
 	ui[index].group = group
+	return index
     }
 
-    return(index)
+    return 0
 }
 
 DEFINE_FUNCTION INTEGER UIGetDeviceIndexFromKey(CHAR deviceKey[]) {
     STACK_VAR INTEGER n
-    STACK_VAR INTEGER result
-
-    result = 0
-
+    
     for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
 	if(ui[n].key == deviceKey) {
-	    result = n
-	    break
+	    return n
 	}
     }
 
-    return(result)
+    return 0
 }
 
 DEFINE_FUNCTION CHAR[UI_KEY_MAX_LENGTH] UIGetGroupKeyFromKey(CHAR deviceKey[]) {
     STACK_VAR INTEGER n
-    STACK_VAR CHAR result[UI_KEY_MAX_LENGTH]
-
-    result = ''
 
     //check if it isn't a group key already
     for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
 	if(ui[n].group == deviceKey) {
-	    result = ui[n].group
-	    break
+	    return ui[n].group
 	}
     }
 
@@ -263,59 +254,46 @@ DEFINE_FUNCTION CHAR[UI_KEY_MAX_LENGTH] UIGetGroupKeyFromKey(CHAR deviceKey[]) {
     if(!LENGTH_STRING(result)) {
 	for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
 	    if(ui[n].key == deviceKey) {
-		result = ui[n].group
-		break
+		return ui[n].group
 	    }
 	}
     }
 
-    return(result)
+    return ''
 }
 
 DEFINE_FUNCTION CHAR[UI_KEY_MAX_LENGTH] UIGetKeyForDevice(DEV device) {
     STACK_VAR INTEGER n
-    STACK_VAR CHAR result[UI_KEY_MAX_LENGTH]
-
-    result = ''
-
+    
     for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
 	if(ui[n].device == device) {
-	    result = ui[n].key
-	    break
+	    return ui[n].key
 	}
     }
 
-    return(result)
+    return ''
 }
 
 DEFINE_FUNCTION CHAR[UI_KEY_MAX_LENGTH] UIGetGroupKeyForDevice(DEV device) {
     STACK_VAR INTEGER n
-    STACK_VAR CHAR result[UI_KEY_MAX_LENGTH]
-
-    result = ''
-
+    
     for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
 	if(ui[n].device == device) {
-	    result = ui[n].group
-	    break
+	    return ui[n].group
 	}
     }
 
-    return(result)
+    return ''
 }
 
 DEFINE_FUNCTION CHAR[UI_KEY_MAX_LENGTH] UIGetKeyForIndex(INTEGER index) {
-    STACK_VAR CHAR result[UI_KEY_MAX_LENGTH]
-
-    result = ''
-
     if(index) {
 	if(ui[index].defined) {
-	    result = ui[index].key
+	    return ui[index].key
 	}
     }
 
-    return(result)
+    return ''
 }
 
 DEFINE_FUNCTION INTEGER UIIsRegistered(INTEGER index) {
