@@ -8,6 +8,11 @@ Enjoy!
 
 Mike
 
+Development Branch
+--------------
+- Bug Fix: UIPageNameFromID() number of arguments changed to reflect only those needed
+- Bug Fix: Fixed a problem with last commit
+
 v2.0
 --------------
 - First official release

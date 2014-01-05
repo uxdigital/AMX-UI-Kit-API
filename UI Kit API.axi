@@ -251,11 +251,9 @@ DEFINE_FUNCTION CHAR[UI_KEY_MAX_LENGTH] UIGetGroupKeyFromKey(CHAR deviceKey[]) {
     }
 
     //check for devicekey if no group key
-    if(!LENGTH_STRING(result)) {
-	for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
-	    if(ui[n].key == deviceKey) {
-		return ui[n].group
-	    }
+    for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
+	if(ui[n].key == deviceKey) {
+	    return ui[n].group
 	}
     }
 
@@ -873,7 +871,7 @@ DEFINE_FUNCTION UIPageFromIDWithTimeOut(char deviceKey[], integer pageID, intege
     }
 }
 
-DEFINE_FUNCTION CHAR[255] UIPageNameFromID(char deviceKey[], integer pageID) {
+DEFINE_FUNCTION CHAR[255] UIPageNameFromID(integer pageID) {
     STACK_VAR INTEGER index
     
     index = UIPageGetIndexForID(pageID)
