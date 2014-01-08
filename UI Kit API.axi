@@ -1848,6 +1848,9 @@ DEFINE_FUNCTION UIPasswordShowMessage(CHAR deviceKey[], CHAR message[]) {
     if(deviceIndex) {
 	if(ui[deviceIndex].password.inSession) {
 	    ui[deviceIndex].password.message = message
+	    if(TIMELINE_ACTIVE(UI_PASSWORD_TIMELINE_MASK)) {
+		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MASK)
+	    }
 	    UITextSend(ui[deviceIndex].device, ui[deviceIndex].password.displayTextJoin, UI_STATE_ALL, message)
 	    if(TIMELINE_ACTIVE(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)) {
 		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)
