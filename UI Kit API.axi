@@ -884,6 +884,58 @@ DEFINE_FUNCTION CHAR[255] UIPageNameFromID(integer pageID) {
     }
 }
 
+DEFINE_FUNCTION UINavModeForPageSet(CHAR deviceKey[], INTEGER page, INTEGER navMode) {
+    _UI_GROUP_MEMBERS group
+    STACK_VAR INTEGER n
+    
+    UIInitGroupMembersType(group)
+    
+    if(UICheckKeyForGroup(deviceKey)) {
+	group.name = deviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(deviceKey)
+    }
+    
+    for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
+	if(group.index[n]) {
+	    if(page && page <= MAX_LENGTH_ARRAY(ui[group.index[n]].navMode)) {
+		ui[group.index[n]].navMode[page] = navMode
+	    }
+	}
+    }
+}
+
+DEFINE_FUNCTION INTEGER UINavModeForPage(CHAR deviceKey[], INTEGER page) {
+    _UI_GROUP_MEMBERS group
+    
+    UIInitGroupMembersType(group)
+    
+    if(UICheckKeyForGroup(deviceKey)) {
+	group.name = deviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(deviceKey)
+    }
+    
+    if(group.index[1]) {
+	if(page && page <= MAX_LENGTH_ARRAY(ui[group.index[1]].navMode)) {
+	    return ui[group.index[1]].navMode[page]
+	}
+    }
+    
+    return 0
+}
+
+DEFINE_FUNCTION UINavModeForCurrentPageSet(CHAR deviceKey[], INTEGER navMode) {
+    UINavModeForPageSet(deviceKey, UIGetCurrentPageID(deviceKey), navMode)
+}
+
+DEFINE_FUNCTION INTEGER UINavModeForCurrentPage(CHAR deviceKey[]) {
+    return UINavModeForPage(deviceKey, UIGetCurrentPageID(deviceKey))
+}
+
+
 DEFINE_FUNCTION UIPopup(CHAR deviceKey[], CHAR popupName[], CHAR pageName[], INTEGER show, INTEGER timeOut) {
     _UI_GROUP_MEMBERS group
     STACK_VAR INTEGER n

@@ -146,6 +146,7 @@ STRUCT _UI_DATA {
     _UI_LIST list
     _UI_PASSWORD_SESSION password
     _UI_WAIT waitData
+    INTEGER navMode[UI_MAX_PAGES]
 }
 
 STRUCT _UI_PAGE {
@@ -207,6 +208,9 @@ DEFINE_FUNCTION UIInitData() {
 	ui[n].waitData.titleAddress = 0
 	ui[n].waitData.levelAddress = 0
 	ui[n].waitData.pageOnEnd = ''
+	for(v = 1; v <= MAX_LENGTH_ARRAY(ui[n].navMode); v ++) {
+	    ui[n].navMode[v] = 0
+	}
     }
     
     for(n = 1; n <= MAX_LENGTH_ARRAY(uiFileData); n ++) {
