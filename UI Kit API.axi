@@ -1793,6 +1793,26 @@ DEFINE_FUNCTION UIButtonHoldSet(CHAR deviceKey[], INTEGER buttonValue) {
     }
 }
 
+DEFINE_FUNCTION UIPasswordLengthSet(CHAR deviceKey[], INTEGER maxLength) {
+    _UI_GROUP_MEMBERS group
+    STACK_VAR INTEGER n
+
+    UIInitGroupMembersType(group)
+
+    if(UICheckKeyForGroup(deviceKey)) {
+	group.name = deviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(deviceKey)
+    }
+
+    for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
+	if(group.index[n]) {
+	    ui[group.index[n]].password.maxLength = maxLength
+	}
+    }
+}
+
 DEFINE_FUNCTION UIPasswordSessionStart(CHAR deviceKey[], CHAR password[], INTEGER displayTextJoin) {
     _UI_GROUP_MEMBERS group
     STACK_VAR INTEGER n
@@ -1820,18 +1840,41 @@ DEFINE_FUNCTION UIPasswordSessionStart(CHAR deviceKey[], CHAR password[], INTEGE
     }
 }
 
+DEFINE_FUNCTION UIPasswordShowMessage(CHAR deviceKey[], CHAR message[]) {
+    STACK_VAR INTEGER deviceIndex
+    
+    deviceIndex = UIGetDeviceIndexFromKey(deviceKey)
+    
+    if(deviceIndex) {
+	if(ui[deviceIndex].password.inSession) {
+	    ui[deviceIndex].password.message = message
+	    UITextSend(ui[deviceIndex].device, ui[deviceIndex].password.displayTextJoin, UI_STATE_ALL, message)
+	    if(TIMELINE_ACTIVE(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)) {
+		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)
+	    }
+	    TIMELINE_CREATE(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR, UI_TIMELINE_1_SECOND_REPEAT_TIME, LENGTH_ARRAY(UI_TIMELINE_1_SECOND_REPEAT_TIME), TIMELINE_ABSOLUTE, TIMELINE_ONCE)
+	}
+    }
+}
+
 DEFINE_FUNCTION UIPasswordEnterCharacter(CHAR deviceKey[], CHAR character[]) {
     STACK_VAR INTEGER deviceIndex
     STACK_VAR CHAR temp[UI_PASSWORD_MAX_LENGTH]
-
+    
     deviceIndex = UIGetDeviceIndexFromKey(deviceKey)
-
+    
     if(deviceIndex) {
 	if(ui[deviceIndex].password.inSession) {
+	    if(LENGTH_STRING(ui[deviceIndex].password.passwordAttempt) == ui[deviceIndex].password.maxLength) {
+		ui[deviceIndex].password.passwordAttempt = ''
+	    }
 	    temp = UIPasswordReturnAsMasked(ui[deviceIndex].password.passwordAttempt)
 	    ui[deviceIndex].password.passwordAttempt = "ui[deviceIndex].password.passwordAttempt, character"
 	    temp = "temp, character"
 	    ui[deviceIndex].password.showingLastCharacter = TRUE
+	    if(TIMELINE_ACTIVE(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)) {
+		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)
+	    }
 	    UITextSend(ui[deviceIndex].device, ui[deviceIndex].password.displayTextJoin, UI_STATE_ALL, temp)
 	    if(TIMELINE_ACTIVE(UI_PASSWORD_TIMELINE_MASK)) {
 		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MASK)
@@ -1905,6 +1948,9 @@ DEFINE_FUNCTION UIPasswordSessionReset(CHAR deviceKey[]) {
 	    UITextSend(ui[deviceIndex].device, ui[deviceIndex].password.displayTextJoin, UI_STATE_ALL, ui[deviceIndex].password.passwordAttempt)
 	    if(TIMELINE_ACTIVE(UI_PASSWORD_TIMELINE_MASK)) {
 		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MASK)
+	    }
+	    if(TIMELINE_ACTIVE(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)) {
+		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)
 	    }
 	    ui[deviceIndex].password.displayTextJoin = 0
 	}

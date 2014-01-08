@@ -66,7 +66,8 @@ INTEGER UI_PASSWORD_MAX_LENGTH				= 50
 LONG UI_TIMELINE_1_SECOND_REPEAT_TIME[]			= { 1000 }
 LONG UI_TIMEOUT_CHECK_TIMELINE				= 3
 LONG UI_PASSWORD_TIMELINE_MASK				= 4
-LONG UI_WAIT_TIMELINE					= 5
+LONG UI_PASSWORD_TIMELINE_MESSAGE_CLEAR			= 5
+LONG UI_WAIT_TIMELINE					= 6
 
 INTEGER UI_MAX_POPUPS_FOR_PAGE_TYPE			= 10
 INTEGER UI_MAX_PAGES					= 100
@@ -76,9 +77,11 @@ DEFINE_TYPE
 STRUCT _UI_PASSWORD_SESSION {
     CHAR password[UI_PASSWORD_MAX_LENGTH]
     CHAR passwordAttempt[UI_PASSWORD_MAX_LENGTH]
+    CHAR message[50]
     INTEGER showingLastCharacter
     INTEGER inSession
     INTEGER displayTextJoin
+    INTEGER maxLength
 }
 
 STRUCT _UI_VAR {
@@ -200,6 +203,8 @@ DEFINE_FUNCTION UIInitData() {
 	ui[n].password.passwordAttempt = ''
 	ui[n].password.showingLastCharacter = 0
 	ui[n].password.inSession = 0
+	ui[n].password.message = ''
+	ui[n].password.maxLength = 10
 	ui[n].waitData.key = ''
 	ui[n].waitData.name = ''
 	ui[n].waitData.waitActive = 0
@@ -777,7 +782,19 @@ TIMELINE_EVENT[UI_PASSWORD_TIMELINE_MASK] {
 	if(ui[n].password.inSession) {
 	    if(ui[n].password.showingLastCharacter) {
 		UITextSend(ui[n].device, ui[n].password.displayTextJoin, UI_STATE_ALL, UIPasswordReturnAsMasked(ui[n].password.passwordAttempt))
-		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MASK)
+	    }
+	}
+    }
+}
+
+TIMELINE_EVENT[UI_PASSWORD_TIMELINE_MESSAGE_CLEAR] {
+    STACK_VAR INTEGER n
+
+    for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
+	if(ui[n].password.inSession) {
+	    if(LENGTH_STRING(ui[n].password.message)) {
+		ui[n].password.message = ''
+		UITextSend(ui[n].device, ui[n].password.displayTextJoin, UI_STATE_ALL, '')
 	    }
 	}
     }
