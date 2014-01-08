@@ -1768,7 +1768,7 @@ DEFINE_FUNCTION UIPasswordSessionStart(CHAR deviceKey[], CHAR password[], INTEGE
     }
 }
 
-DEFINE_FUNCTION UIPasswordEnterCharacter(CHAR deviceKey[], CHAR character) {
+DEFINE_FUNCTION UIPasswordEnterCharacter(CHAR deviceKey[], CHAR character[]) {
     STACK_VAR INTEGER deviceIndex
     STACK_VAR CHAR temp[UI_PASSWORD_MAX_LENGTH]
 
