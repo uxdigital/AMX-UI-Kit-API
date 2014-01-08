@@ -167,6 +167,7 @@ STRUCT _UI_ACTIONSHEET {
     INTEGER timeOutTimeInSeconds
     _UI_ACTIONSHEET_BUTTON buttonChoice[UI_ACTIONSHEET_MAX_BUTTONS]
     INTEGER numberOfButtons
+    CHAR backgroundPopUpName[UI_POPUP_NAME_MAX_LENGTH]
     CHAR popUpName[UI_POPUP_NAME_MAX_LENGTH]
 }
 
@@ -1297,6 +1298,7 @@ DEFINE_FUNCTION UIActionSheetInit(_UI_ACTIONSHEET actionSheet) {
     }
 
     actionSheet.numberOfButtons = 0
+    actionSheet.backgroundPopUpName = ''
     actionSheet.popUpName = ''
 }
 
@@ -1342,7 +1344,12 @@ DEFINE_FUNCTION UIActionSheetShow(CHAR deviceKey[], _UI_ACTIONSHEET actionSheet)
 
     UIText(deviceKey, actionSheet.titleJoin, UI_STATE_ALL, actionSheet.title)
     UIText(deviceKey, actionSheet.subTitleJoin, UI_STATE_ALL, actionSheet.subTitle)
-    UIPopup(deviceKey, actionSheet.popUpName, '', 1, actionSheet.timeOutTimeInSeconds * 10)
+    
+    if(LENGTH_STRING(actionSheet.backgroundPopUpName)) {
+	UIPopup(deviceKey, actionSheet.backgroundPopUpName, '', TRUE, actionSheet.timeOutTimeInSeconds * 10)
+    }
+    
+    UIPopup(deviceKey, actionSheet.popUpName, '', TRUE, actionSheet.timeOutTimeInSeconds * 10)
 }
 
 DEFINE_FUNCTION UIActionSheetClose(CHAR deviceKey[]) {
@@ -1362,8 +1369,11 @@ DEFINE_FUNCTION UIActionSheetClose(CHAR deviceKey[]) {
     for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
 	if(group.index[n]) {
 	    actionSheet = ui[group.index[n]].actionSheet
-	    UIPopup(ui[group.index[n]].key, actionSheet.popUpName, ui[group.index[n]].pageCurrent, 0, 0)
-	    UIPopup(ui[group.index[n]].key, actionSheet.popUpName, ui[group.index[n]].pagePrevious, 0, 0)
+	    UIPopup(ui[group.index[n]].key, actionSheet.backgroundPopUpName, ui[group.index[n]].pageCurrent, FALSE, 0)
+	    UIPopup(ui[group.index[n]].key, actionSheet.backgroundPopUpName, ui[group.index[n]].pagePrevious, FALSE, 0)
+	    
+	    UIPopup(ui[group.index[n]].key, actionSheet.popUpName, ui[group.index[n]].pageCurrent, FALSE, 0)
+	    UIPopup(ui[group.index[n]].key, actionSheet.popUpName, ui[group.index[n]].pagePrevious, FALSE, 0)
 	}
     }
 }

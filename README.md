@@ -12,6 +12,7 @@ Development Branch
 --------------
 - Bug Fix: UIPageNameFromID() number of arguments changed to reflect only those needed
 - Bug Fix: Fixed a problem with last commit
+- Added background popup name for UIActionSheet() so you can create modal style animation popups
 
 v2.0
 --------------
