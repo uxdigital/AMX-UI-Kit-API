@@ -16,6 +16,7 @@ Development Branch
 - Added background popup name for UIActionSheet() so you can create modal style animation popups
 - New functions and data storage for setting an int val on the ui for a nav mode (could be a popup index / mode) on an individual page id
 - Changes to UIPassword and new functions for messages and length
+- UIWaitStart() pageName now is not required if Page flip isn't wanted
 
 v2.0
 --------------

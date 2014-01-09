@@ -2050,7 +2050,9 @@ DEFINE_FUNCTION UIWaitStart(CHAR uiDeviceKey[], CHAR pageName[]) {
 	if(group.index[n]) {
 	    if(ui[group.index[n]].waitData.waitTime && ui[group.index[n]].waitData.waitTimeCounting) {
 		UITextSend(ui[group.index[n]].device, ui[group.index[n]].waitData.titleAddress, UI_STATE_ALL, ui[group.index[n]].waitData.name)
-		UIPageSend(ui[group.index[n]].device, pageName)
+		if(LENGTH_STRING(pageName)) {
+		    UIPageSend(ui[group.index[n]].device, pageName)
+		}
 		ui[group.index[n]].waitData.waitActive = TRUE
 	    }
 	}
