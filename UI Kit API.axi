@@ -167,6 +167,7 @@ STRUCT _UI_ACTIONSHEET {
     INTEGER timeOutTimeInSeconds
     _UI_ACTIONSHEET_BUTTON buttonChoice[UI_ACTIONSHEET_MAX_BUTTONS]
     INTEGER numberOfButtons
+    CHAR backgroundPopUpName[UI_POPUP_NAME_MAX_LENGTH]
     CHAR popUpName[UI_POPUP_NAME_MAX_LENGTH]
 }
 
@@ -209,8 +210,6 @@ DEFINE_FUNCTION INTEGER UIRegisterDevice(CHAR key[], CHAR name[], CHAR group[], 
     STACK_VAR INTEGER n
     STACK_VAR INTEGER index
 
-    index = 0
-
     for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
 	if(!ui[n].defined) {
 	    index = n;
@@ -224,98 +223,76 @@ DEFINE_FUNCTION INTEGER UIRegisterDevice(CHAR key[], CHAR name[], CHAR group[], 
 	ui[index].name = name
 	ui[index].device = device
 	ui[index].group = group
+	return index
     }
 
-    return(index)
+    return 0
 }
 
 DEFINE_FUNCTION INTEGER UIGetDeviceIndexFromKey(CHAR deviceKey[]) {
     STACK_VAR INTEGER n
-    STACK_VAR INTEGER result
-
-    result = 0
-
+    
     for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
 	if(ui[n].key == deviceKey) {
-	    result = n
-	    break
+	    return n
 	}
     }
 
-    return(result)
+    return 0
 }
 
 DEFINE_FUNCTION CHAR[UI_KEY_MAX_LENGTH] UIGetGroupKeyFromKey(CHAR deviceKey[]) {
     STACK_VAR INTEGER n
-    STACK_VAR CHAR result[UI_KEY_MAX_LENGTH]
-
-    result = ''
 
     //check if it isn't a group key already
     for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
 	if(ui[n].group == deviceKey) {
-	    result = ui[n].group
-	    break
+	    return ui[n].group
 	}
     }
 
     //check for devicekey if no group key
-    if(!LENGTH_STRING(result)) {
-	for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
-	    if(ui[n].key == deviceKey) {
-		result = ui[n].group
-		break
-	    }
+    for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
+	if(ui[n].key == deviceKey) {
+	    return ui[n].group
 	}
     }
 
-    return(result)
+    return ''
 }
 
 DEFINE_FUNCTION CHAR[UI_KEY_MAX_LENGTH] UIGetKeyForDevice(DEV device) {
     STACK_VAR INTEGER n
-    STACK_VAR CHAR result[UI_KEY_MAX_LENGTH]
-
-    result = ''
-
+    
     for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
 	if(ui[n].device == device) {
-	    result = ui[n].key
-	    break
+	    return ui[n].key
 	}
     }
 
-    return(result)
+    return ''
 }
 
 DEFINE_FUNCTION CHAR[UI_KEY_MAX_LENGTH] UIGetGroupKeyForDevice(DEV device) {
     STACK_VAR INTEGER n
-    STACK_VAR CHAR result[UI_KEY_MAX_LENGTH]
-
-    result = ''
-
+    
     for(n = 1; n <= MAX_LENGTH_ARRAY(ui); n ++) {
 	if(ui[n].device == device) {
-	    result = ui[n].group
-	    break
+	    return ui[n].group
 	}
     }
 
-    return(result)
+    return ''
 }
 
 DEFINE_FUNCTION CHAR[UI_KEY_MAX_LENGTH] UIGetKeyForIndex(INTEGER index) {
-    STACK_VAR CHAR result[UI_KEY_MAX_LENGTH]
-
-    result = ''
-
     if(index) {
 	if(ui[index].defined) {
-	    result = ui[index].key
+	    return ui[index].key
 	}
     }
 
-    return(result)
+    return ''
 }
 
 DEFINE_FUNCTION INTEGER UIIsRegistered(INTEGER index) {
@@ -895,7 +872,7 @@ DEFINE_FUNCTION UIPageFromIDWithTimeOut(char deviceKey[], integer pageID, intege
     }
 }
 
-DEFINE_FUNCTION CHAR[255] UIPageNameFromID(char deviceKey[], integer pageID) {
+DEFINE_FUNCTION CHAR[255] UIPageNameFromID(integer pageID) {
     STACK_VAR INTEGER index
     
     index = UIPageGetIndexForID(pageID)
@@ -906,6 +883,58 @@ DEFINE_FUNCTION CHAR[255] UIPageNameFromID(char deviceKey[], integer pageID) {
 	return ''
     }
 }
+
+DEFINE_FUNCTION UINavModeForPageSet(CHAR deviceKey[], INTEGER page, INTEGER navMode) {
+    _UI_GROUP_MEMBERS group
+    STACK_VAR INTEGER n
+    
+    UIInitGroupMembersType(group)
+    
+    if(UICheckKeyForGroup(deviceKey)) {
+	group.name = deviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(deviceKey)
+    }
+    
+    for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
+	if(group.index[n]) {
+	    if(page && page <= MAX_LENGTH_ARRAY(ui[group.index[n]].navMode)) {
+		ui[group.index[n]].navMode[page] = navMode
+	    }
+	}
+    }
+}
+
+DEFINE_FUNCTION INTEGER UINavModeForPage(CHAR deviceKey[], INTEGER page) {
+    _UI_GROUP_MEMBERS group
+    
+    UIInitGroupMembersType(group)
+    
+    if(UICheckKeyForGroup(deviceKey)) {
+	group.name = deviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(deviceKey)
+    }
+    
+    if(group.index[1]) {
+	if(page && page <= MAX_LENGTH_ARRAY(ui[group.index[1]].navMode)) {
+	    return ui[group.index[1]].navMode[page]
+	}
+    }
+    
+    return 0
+}
+
+DEFINE_FUNCTION UINavModeForCurrentPageSet(CHAR deviceKey[], INTEGER navMode) {
+    UINavModeForPageSet(deviceKey, UIGetCurrentPageID(deviceKey), navMode)
+}
+
+DEFINE_FUNCTION INTEGER UINavModeForCurrentPage(CHAR deviceKey[]) {
+    return UINavModeForPage(deviceKey, UIGetCurrentPageID(deviceKey))
+}
+
 
 DEFINE_FUNCTION UIPopup(CHAR deviceKey[], CHAR popupName[], CHAR pageName[], INTEGER show, INTEGER timeOut) {
     _UI_GROUP_MEMBERS group
@@ -1321,6 +1350,7 @@ DEFINE_FUNCTION UIActionSheetInit(_UI_ACTIONSHEET actionSheet) {
     }
 
     actionSheet.numberOfButtons = 0
+    actionSheet.backgroundPopUpName = ''
     actionSheet.popUpName = ''
 }
 
@@ -1366,7 +1396,12 @@ DEFINE_FUNCTION UIActionSheetShow(CHAR deviceKey[], _UI_ACTIONSHEET actionSheet)
 
     UIText(deviceKey, actionSheet.titleJoin, UI_STATE_ALL, actionSheet.title)
     UIText(deviceKey, actionSheet.subTitleJoin, UI_STATE_ALL, actionSheet.subTitle)
-    UIPopup(deviceKey, actionSheet.popUpName, '', 1, actionSheet.timeOutTimeInSeconds * 10)
+    
+    if(LENGTH_STRING(actionSheet.backgroundPopUpName)) {
+	UIPopup(deviceKey, actionSheet.backgroundPopUpName, '', TRUE, actionSheet.timeOutTimeInSeconds * 10)
+    }
+    
+    UIPopup(deviceKey, actionSheet.popUpName, '', TRUE, actionSheet.timeOutTimeInSeconds * 10)
 }
 
 DEFINE_FUNCTION UIActionSheetClose(CHAR deviceKey[]) {
@@ -1386,8 +1421,11 @@ DEFINE_FUNCTION UIActionSheetClose(CHAR deviceKey[]) {
     for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
 	if(group.index[n]) {
 	    actionSheet = ui[group.index[n]].actionSheet
-	    UIPopup(ui[group.index[n]].key, actionSheet.popUpName, ui[group.index[n]].pageCurrent, 0, 0)
-	    UIPopup(ui[group.index[n]].key, actionSheet.popUpName, ui[group.index[n]].pagePrevious, 0, 0)
+	    UIPopup(ui[group.index[n]].key, actionSheet.backgroundPopUpName, ui[group.index[n]].pageCurrent, FALSE, 0)
+	    UIPopup(ui[group.index[n]].key, actionSheet.backgroundPopUpName, ui[group.index[n]].pagePrevious, FALSE, 0)
+	    
+	    UIPopup(ui[group.index[n]].key, actionSheet.popUpName, ui[group.index[n]].pageCurrent, FALSE, 0)
+	    UIPopup(ui[group.index[n]].key, actionSheet.popUpName, ui[group.index[n]].pagePrevious, FALSE, 0)
 	}
     }
 }
@@ -1755,6 +1793,26 @@ DEFINE_FUNCTION UIButtonHoldSet(CHAR deviceKey[], INTEGER buttonValue) {
     }
 }
 
+DEFINE_FUNCTION UIPasswordLengthSet(CHAR deviceKey[], INTEGER maxLength) {
+    _UI_GROUP_MEMBERS group
+    STACK_VAR INTEGER n
+
+    UIInitGroupMembersType(group)
+
+    if(UICheckKeyForGroup(deviceKey)) {
+	group.name = deviceKey
+	UIGetDeviceIndexesFromGroup(group)
+    } else {
+	group.index[1] = UIGetDeviceIndexFromKey(deviceKey)
+    }
+
+    for(n = 1; n <= MAX_LENGTH_ARRAY(group.index); n ++) {
+	if(group.index[n]) {
+	    ui[group.index[n]].password.maxLength = maxLength
+	}
+    }
+}
+
 DEFINE_FUNCTION UIPasswordSessionStart(CHAR deviceKey[], CHAR password[], INTEGER displayTextJoin) {
     _UI_GROUP_MEMBERS group
     STACK_VAR INTEGER n
@@ -1782,18 +1840,44 @@ DEFINE_FUNCTION UIPasswordSessionStart(CHAR deviceKey[], CHAR password[], INTEGE
     }
 }
 
-DEFINE_FUNCTION UIPasswordEnterCharacter(CHAR deviceKey[], CHAR character) {
+DEFINE_FUNCTION UIPasswordShowMessage(CHAR deviceKey[], CHAR message[]) {
     STACK_VAR INTEGER deviceIndex
-    STACK_VAR CHAR temp[UI_PASSWORD_MAX_LENGTH]
-
+    
     deviceIndex = UIGetDeviceIndexFromKey(deviceKey)
-
+    
     if(deviceIndex) {
 	if(ui[deviceIndex].password.inSession) {
+	    ui[deviceIndex].password.message = message
+	    if(TIMELINE_ACTIVE(UI_PASSWORD_TIMELINE_MASK)) {
+		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MASK)
+	    }
+	    UITextSend(ui[deviceIndex].device, ui[deviceIndex].password.displayTextJoin, UI_STATE_ALL, message)
+	    if(TIMELINE_ACTIVE(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)) {
+		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)
+	    }
+	    TIMELINE_CREATE(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR, UI_TIMELINE_1_SECOND_REPEAT_TIME, LENGTH_ARRAY(UI_TIMELINE_1_SECOND_REPEAT_TIME), TIMELINE_ABSOLUTE, TIMELINE_ONCE)
+	}
+    }
+}
+
+DEFINE_FUNCTION UIPasswordEnterCharacter(CHAR deviceKey[], CHAR character[]) {
+    STACK_VAR INTEGER deviceIndex
+    STACK_VAR CHAR temp[UI_PASSWORD_MAX_LENGTH]
+    
+    deviceIndex = UIGetDeviceIndexFromKey(deviceKey)
+    
+    if(deviceIndex) {
+	if(ui[deviceIndex].password.inSession) {
+	    if(LENGTH_STRING(ui[deviceIndex].password.passwordAttempt) == ui[deviceIndex].password.maxLength) {
+		ui[deviceIndex].password.passwordAttempt = ''
+	    }
 	    temp = UIPasswordReturnAsMasked(ui[deviceIndex].password.passwordAttempt)
 	    ui[deviceIndex].password.passwordAttempt = "ui[deviceIndex].password.passwordAttempt, character"
 	    temp = "temp, character"
 	    ui[deviceIndex].password.showingLastCharacter = TRUE
+	    if(TIMELINE_ACTIVE(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)) {
+		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)
+	    }
 	    UITextSend(ui[deviceIndex].device, ui[deviceIndex].password.displayTextJoin, UI_STATE_ALL, temp)
 	    if(TIMELINE_ACTIVE(UI_PASSWORD_TIMELINE_MASK)) {
 		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MASK)
@@ -1867,6 +1951,9 @@ DEFINE_FUNCTION UIPasswordSessionReset(CHAR deviceKey[]) {
 	    UITextSend(ui[deviceIndex].device, ui[deviceIndex].password.displayTextJoin, UI_STATE_ALL, ui[deviceIndex].password.passwordAttempt)
 	    if(TIMELINE_ACTIVE(UI_PASSWORD_TIMELINE_MASK)) {
 		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MASK)
+	    }
+	    if(TIMELINE_ACTIVE(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)) {
+		TIMELINE_KILL(UI_PASSWORD_TIMELINE_MESSAGE_CLEAR)
 	    }
 	    ui[deviceIndex].password.displayTextJoin = 0
 	}
@@ -1963,7 +2050,9 @@ DEFINE_FUNCTION UIWaitStart(CHAR uiDeviceKey[], CHAR pageName[]) {
 	if(group.index[n]) {
 	    if(ui[group.index[n]].waitData.waitTime && ui[group.index[n]].waitData.waitTimeCounting) {
 		UITextSend(ui[group.index[n]].device, ui[group.index[n]].waitData.titleAddress, UI_STATE_ALL, ui[group.index[n]].waitData.name)
-		UIPageSend(ui[group.index[n]].device, pageName)
+		if(LENGTH_STRING(pageName)) {
+		    UIPageSend(ui[group.index[n]].device, pageName)
+		}
 		ui[group.index[n]].waitData.waitActive = TRUE
 	    }
 	}
